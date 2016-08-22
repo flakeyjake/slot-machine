@@ -1,0 +1,207 @@
+<html>
+
+<head>
+    <title>Slot Machine - Login</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/game.css">
+</head>
+
+<body>
+    <div id="page_login">
+        <p id="header">Slot Machine - Login</p>
+
+        <input type="text" placeholder="Username" id="username"><br/>
+        <input type="password" placeholder="Password" id="password"><br/>
+        <input type="submit" value="Log In" id="submit">
+
+        <p id="bottom">Need an account? <a href="register.html">Register Now</a></p>
+        <p id="result"></p>
+    </div>
+
+    <div id="page_game">
+
+        <p id="header">Prizes:</p>
+
+        <p id="prize_item" style="background-color: green">3 Green: 100 tokens</p>
+        <p id="prize_item" style="background-color: blue">3 Blue: 25 tokens</p>
+        <p id="prize_item" style="background-color: red">3 Red: 10 tokens</p>
+        <p id="prize_item" style="background-color: black">3 Black: Loss of ALL tokens!</p>
+
+        <table id="slots">
+            <tr>
+                <td id="slot_1">
+
+                </td>
+                <td id="slot_2">
+
+                </td>
+                <td id="slot_3">
+
+                </td>
+            </tr>
+        </table>
+
+        <p id="username_field"></p>
+        <button id="btn_spin">Spin (1 token)</button>
+    </div>
+
+
+    <script>
+        $(document).ready(function() {
+            var bellSound = document.createElement('audio');
+            bellSound.setAttribute('src', 'ding.mp3');
+            var username = "";
+
+            var btn_submit = $('#submit');
+
+            btn_submit.click(function() {
+                $.post('/login', {
+                    username: $('#username').val(),
+                    password: $('#password').val()
+                }, function(data) {
+                    if (data == "Incorrect username or password") {
+                        $('#result').text(data);
+                    }
+                    else {
+                        username = data;
+                        $('#page_login').css('visibility', 'hidden');
+                        $('#page_game').css('visibility', 'visible');
+                    }
+
+                });
+            });
+
+            var btn_spin = $('#btn_spin');
+            var slot_1 = $('#slot_1');
+            var slot_2 = $('#slot_2');
+            var slot_3 = $('#slot_3');
+
+            btn_spin.click(function() {
+                spin();
+            });
+
+            function spin() {
+                btn_spin.prop('disabled', true);
+                btn_spin.css('opacity', '0.5');
+                var colors = ["red", "blue", "green", "black"];
+
+                var counter = 0;
+
+                spin_recur();
+
+                function spin_recur() {
+                    bellSound.play();
+                    var timeout = setTimeout(function() {
+                        if (counter < 10) {
+
+                            slot_1.css("background-color", colors[Math.floor(Math.random() * colors.length)]);
+                            slot_2.css("background-color", colors[Math.floor(Math.random() * colors.length)]);
+                            slot_3.css("background-color", colors[Math.floor(Math.random() * colors.length)]);
+
+                            counter++;
+                            spin_recur();
+                        }
+                        else if (counter < 20) {
+                            slot_2.css("background-color", colors[Math.floor(Math.random() * colors.length)]);
+                            slot_3.css("background-color", colors[Math.floor(Math.random() * colors.length)]);
+
+                            counter++;
+                            spin_recur();
+                        }
+                        else if (counter < 30) {
+                            slot_3.css("background-color", colors[Math.floor(Math.random() * colors.length)]);
+
+                            counter++;
+                            spin_recur();
+                        }
+                        else {
+                            counter = 0;
+                            checkspin();
+                        }
+                    }, 50);
+                }
+            }
+
+
+
+            function checkspin() // checks what you've gotten from spinning
+            {
+
+                if (slot_1.css('background-color') == 'rgb(0, 0, 0)' && slot_2.css('background-color') == 'rgb(0, 0, 0)' && slot_3.css('background-color') == 'rgb(0, 0, 0)') // black
+                {
+                    $.post('/addTokens', {
+                        username: username,
+                        amount: 0
+                    }, function(data) {
+                        alert(data);
+                    })
+                }
+                else if (slot_1.css('background-color') == 'rgb(255, 0, 0)' && slot_2.css('background-color') == 'rgb(255, 0, 0)' && slot_3.css('background-color') == 'rgb(255, 0, 0)') // red
+                {
+                    alert('red');
+                    $.post('/addTokens', {
+                        username: username,
+                        amount: 10
+                    }, function(data) {
+                        alert(data);
+                    })
+                }
+                else if (slot_1.css('background-color') == 'rgb(0, 128, 0)' && slot_2.css('background-color') == 'rgb(0, 128, 0)' && slot_3.css('background-color') == 'rgb(0, 128, 0)') // green
+                {
+                    $.post('/addTokens', {
+                        username: username,
+                        amount: 100
+                    }, function(data) {
+                        alert(data);
+                    })
+                }
+                else if (slot_1.css('background-color') == 'rgb(0, 0, 255)' && slot_2.css('background-color') == 'rgb(0, 0, 255)' && slot_3.css('background-color') == 'rgb(0, 0, 255)') // blue
+                {
+                    $.post('/addTokens', {
+                        username: username,
+                        amount: 25
+                    }, function(data) {
+                        alert(data);
+                    })
+                }
+
+                else {
+                    removeTokens(username, 1, function(tokens) {
+
+                    });
+                }
+                setTimeout(function() {
+                    btn_spin.prop('disabled', false);
+                    btn_spin.css('opacity', '1');
+                    getTokens(username, function(tokens) {
+                        $('#username_field').text('Logged in as : ' + username + '. Your Tokens: ' + tokens);
+                    });
+                }, 1500);
+
+
+                
+
+            }
+
+            function getTokens(user, cb) {
+
+                $.post("/getTokens", {
+                    username: user
+                }, function(data) {
+                    return cb(data);
+                });
+            }
+
+            function removeTokens(user, amount, cb) {
+                $.post("/removeTokens", {
+                    username: user,
+                    amount: amount
+                }, function(data) {
+
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>
